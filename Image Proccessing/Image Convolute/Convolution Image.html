@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8"/>
+    </head>
+
+     
+
+<body onload="start()">
+
+<h1>Javascript vs WASM - image Convolution</h1>
+
+
+<script src="imageConvolute.js"></script>
+
+<script>
+    
+function jsImageConvolute(
+data, data2, width, height,weights, wwidth, wheight) {
+    var halfWWidth = (wwidth / 2) | 0;
+    var halfWHeight = (wheight / 2) | 0;
+    for (var y = 0; y < height; y++) {
+        for (var x = 0; x < width; x++) {
+            var r = 0;
+            var g = 0;
+            var b = 0;
+            var a = 0;
+            for (var wy = 0; wy < wheight; wy++) {
+                var sy = y + wy - halfWHeight;
+                if (sy < 0 || sy >= height)
+                    continue;
+                    for (var wx = 0; wx < wwidth; wx++) {
+                        var sx = x + wx - halfWWidth;
+                        if (sx < 0 || sx >= width)
+                        continue;
+                        var index = sy * width + sx;
+                        var weight = weights[wy*wwidth+wx];
+                        r += data[index*4+0] * weight;
+                        g += data[index*4+1] * weight;
+                        b += data[index*4+2] * weight;
+                        a += data[index*4+3] * weight;
+                    }
+            }
+        var index = y * width + x;
+        data2[index*4+0] = r | 0;
+        data2[index*4+1] = g | 0;
+        data2[index*4+2] = b | 0;
+        data2[index*4+3] = a | 0;
+        }
+    }
+}
+
+
+
+function start() {
+
+
+    var jsPerformance = document.getElementById('js_performance');
+    var wsPerformance = document.getElementById('ws_performance');
+
+    var image = document.getElementById('main_image');
+    var width = image.width;
+    var height = image.height;
+    var loop = 10;
+
+
+    var weights = new Float64Array([
+        1/25, 1/25, 1/25, 1/25, 1/25,
+        1/25, 1/25, 1/25, 1/25, 1/25,
+        1/25, 1/25, 1/25, 1/25, 1/25,
+        1/25, 1/25, 1/25, 1/25, 1/25,
+        1/25, 1/25, 1/25, 1/25, 1/25]);
+    var wWidth = 5;
+    var wHeight = 5;
+
+
+        // Canvas gia UNKNOWN
+        var canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        var context = canvas.getContext('2d');
+        context.drawImage(image, 0, 0);
+        var imageData = context.getImageData(0, 0, width, height);
+
+        //Canvas gia JS
+        var jsCanvas = document.getElementById('js_canvas');
+        jsCanvas.width = width;
+        jsCanvas.height = height;
+        var jsContext = jsCanvas.getContext('2d');
+        jsContext.drawImage(image,0,0);
+        var jsImageData = jsContext.getImageData(0, 0, width, height);
+
+        // Canvas gia WASM
+        var wasmCanvas = document.getElementById('wasm_canvas');
+        wasmCanvas.width = width;
+        wasmCanvas.height = height;
+        var wasmContext = wasmCanvas.getContext('2d');
+        wasmContext.drawImage(image,0,0);
+        var wasmImageData = wasmContext.getImageData(0, 0, width, height);
+       
+        
+        var array0 = imageData.data;
+        var array1 = jsImageData.data;
+        var array2 = wasmImageData.data;
+
+
+
+        Module['onRuntimeInitialized'] = () => {
+
+           // Javascript
+            var elapsedTime_JS = 0.0;
+            for(var i = 0; i<=loop; i++){
+
+                var array0 = imageData.data;
+                var array1 = jsImageData.data;
+                var array2 = wasmImageData.data;
+
+                var startTime = performance.now();
+                jsImageConvolute(array0, array1, width, height,
+                                weights, wWidth, wHeight);
+                jsContext.putImageData(jsImageData, 0, 0);
+                var endTime = performance.now();
+                elapsedTime_JS += (endTime - startTime);
+                }
+            elapsedTime_JS = (elapsedTime_JS/1000)
+       
+            jsPerformance.innerText = elapsedTime_JS;
+            
+
+            //WASM
+            var elapsedTime_wasm = 0.0;
+            for(var i = 0; i<=loop; i++){
+
+                var array0 = imageData.data;
+                var array1 = jsImageData.data;
+                var array2 = wasmImageData.data;
+
+                //var array_wasm = wasmImageData.data;
+                var startTime = performance.now();
+                var c_func = wsImageConvolute(array0,array2, width, height,
+                                            weights, wWidth, wHeight);
+                var endTime = performance.now();
+                wasmContext.putImageData(wasmImageData, 0, 0);
+                
+                elapsedTime_wasm += (endTime - startTime);   
+                //console.log(elapsedTime_wasm);
+            }
+            elapsedTime_wasm = (elapsedTime_wasm/1000)
+            wsPerformance.innerText = elapsedTime_wasm;
+            //console.log("otan yparxei auto to console log gia kapoio logo exw xamhlotero execution time sto wasm pragma pou to thlew giati h wasm einai pio grigorh sto image process, na kanw debug" + elapsedTime_wasm/10)
+
+                
+            function wsImageConvolute(array1, array2, width, height,
+                            weights, wWidth, wHeight) {
+                var pointer1 = Module._malloc(array1.length);
+                var pointer2 = Module._malloc(array2.length);
+                var pointer3 = Module._malloc(weights.length * 8);
+                var offset1 = pointer1;
+                var offset2 = pointer2;
+                var offset3 = pointer3 / 8;
+                Module.HEAPU8.set(array1, offset1);
+                Module.HEAPF64.set(weights, offset3);
+                _imageConvolute(pointer1, pointer2, width, height,
+                                        pointer3, wWidth, wHeight);
+                array2.set(Module.HEAPU8.subarray(offset2, offset2 + array2.length));
+                Module._free(pointer1);
+                Module._free(pointer2);
+                Module._free(pointer3);
+            }
+          
+           
+            
+            
+        }
+        
+    }     
+    
+    </script>
+
+
+    <img id="main_image" src="Lena_colors.jpg">
+
+    <canvas id="js_canvas"></canvas>
+    <canvas id="wasm_canvas"></canvas>
+    <div>
+        Result (average [ms])<br />
+        JavaScript: <div id="js_performance"></div><br />
+        WebAssembly: <div id="ws_performance"></div><br />
+
+    </div>
+    
+</body>
+
+</html>

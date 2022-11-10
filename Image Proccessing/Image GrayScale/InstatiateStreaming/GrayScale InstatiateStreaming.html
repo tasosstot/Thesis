@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+</head>
+
+
+
+
+
+<h1> InstatiateStreaming - Javascript vs WASM - image Grayscale</h1>
+
+
+<script>
+
+WebAssembly.instantiateStreaming(fetch('program.wasm'))
+    // .then(buffer => new Uint8Array(1600000))
+    .then(wasmModule => {
+        console.log('WASM Ready...');
+
+        //THelw na bgalw to wasm ektos scope ή closure gia to logo auto
+        //Tha to valw sto window
+        //Wasm object accessible from window
+        window.wasmModule = wasmModule;
+        // console.log(wasmModule);
+        wasmModule.instance.exports.memory.grow(15);
+
+        var jsPerformance = document.getElementById('js_performance');
+        var wsPerformance = document.getElementById('ws_performance');
+        var image = document.getElementById('main_image');
+        var width = image.width;
+        var height = image.height;
+
+
+        // Canvas gia UNKNOWN
+        var canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        var context = canvas.getContext('2d');
+        context.drawImage(image, 0, 0);
+        var imageData = context.getImageData(0, 0, width, height);
+
+        //Canvas gia JS
+        var jsCanvas = document.getElementById('js_canvas');
+        jsCanvas.width = width;
+        jsCanvas.height = height;
+        var jsContext = jsCanvas.getContext('2d');
+        jsContext.drawImage(image, 0, 0);
+        var jsImageData = jsContext.getImageData(0, 0, width, height);
+
+        // Canvas gia WASM
+        var wasmCanvas = document.getElementById('wasm_canvas');
+        wasmCanvas.width = width;
+        wasmCanvas.height = height;
+        var wasmContext = wasmCanvas.getContext('2d');
+        wasmContext.drawImage(image, 0, 0);
+        var wasmImageData = wasmContext.getImageData(0, 0, width, height);
+
+
+
+
+        
+        let loop = 50;
+        var elapsedTime_JS = 0.0;
+        var array_JS = jsImageData.data;
+        for (var i = 0; i <= loop; i++) {
+            var startTime = performance.now();
+            jsImageGrayscale(array_JS, width, height);
+            var endTime = performance.now();
+            jsContext.putImageData(jsImageData, 0, 0);            
+            elapsedTime_JS += (endTime - startTime);
+        }
+        elapsedTime_JS = (elapsedTime_JS / 1000)
+        console.log(elapsedTime_JS)
+        jsPerformance.innerText = elapsedTime_JS;
+
+        //WASM
+        var elapsedTime_wasm = 0.0;
+        var array_wasm = wasmImageData.data;
+        for (var i = 0; i <= loop; i++) {
+            var startTime = performance.now();
+            // var c_func = wasmModule.instance.exports.imageGrayscale(array_wasm, width, height);
+            var newImageDataBuffer = imageGrayscale(array_wasm, width, height);
+            var endTime = performance.now();
+            //  console.log("asd", newImageDataBuffer);
+            var newImageData = new ImageData(newImageDataBuffer, width, height);
+            wasmContext.putImageData(newImageData, 0, 0);
+            elapsedTime_wasm += (endTime - startTime);  
+        }
+            elapsedTime_wasm = ( elapsedTime_wasm/loop).toFixed(5)
+            console.log("wasm", elapsedTime_wasm/1000)
+
+
+        function imageGrayscale(array, width, height) {
+            var cArr1 = new Uint8ClampedArray(
+                wasmModule.instance.exports.memory.buffer,
+                0,
+                array.length
+            );
+            cArr1.set(array);
+            
+
+
+            
+            //var pointer = wasmModule.instance.exports.mallocTasos(array.length);
+
+            //let HEAPU8t = new Uint8Array(offset*2);
+            //wasmModule.HEAPU8.set(array, offset);
+            // HEAPU8t.set(array, offset);
+            var startTime = performance.now();
+            wasmModule.instance.exports.imageGrayscale(cArr1.byteOffset, width, height);
+            var endTime = performance.now();
+
+
+            //array.set(wasmModule.HEAPU8.subarray(offset, offset + array.length));
+            elapsedTime_wasm += (endTime - startTime);
+            return cArr1;
+        }
+        elapsedTime_wasm = (elapsedTime_wasm / loop).toFixed(5)
+        wsPerformance.innerText = elapsedTime_wasm;
+        console.log(elapsedTime_wasm / 10)
+    })
+
+
+
+
+
+
+    function jsImageGrayscale(data, width, height) {
+        for (var i = 0, il = width * height; i < il; i++) {
+            var r = data[i * 4 + 0];
+            var g = data[i * 4 + 1];
+            var b = data[i * 4 + 2];
+            data[i * 4 + 0] = data[i * 4 + 1] = data[i * 4 + 2] =
+                (0.2126 * r + 0.7152 * g + 0.0722 * b) | 0;
+        }
+
+    }
+
+
+
+
+
+</script>
+
+
+<img id="main_image" src="Lena_colors.jpg">
+<div>
+    JavaScript: <div id="js_performance"></div><br />
+    WebAssembly: <div id="ws_performance"></div><br />
+</div>
+
+<canvas id="js_canvas"></canvas>
+<canvas id="wasm_canvas"></canvas>
+</body>
+
+</html>

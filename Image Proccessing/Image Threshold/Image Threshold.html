@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8"/>
+    </head>
+
+     
+
+<body onload="start()">
+
+<h1>Javascript vs WASM - image Threshold</h1>
+
+
+<script src="imageThreshold.js"></script>
+
+<script>
+
+
+//JavaScript
+var _work;
+function jsImageThreshold(data, width, height) {
+  if (_work === undefined) _work = new Int32Array(width * height);
+  var array = _work;
+  var s = 8;
+  var s2 = s / 2;
+  var t = 15;
+  var t2 = (100 - t) / 100;
+  for (var i = 0; i < width; i++) {
+    var sum = 0;
+    for (var j = 0; j < height; j++) {
+      var index = j * width + i;
+      var r = data[index * 4 + 0];
+      var g = data[index * 4 + 1];
+      var b = data[index * 4 + 2];
+      data[index * 4] = ((0.2126*r + 0.7152*g + 0.0722*b) | 0);
+      sum += data[index * 4];
+      if (i === 0) {
+        array[index] = sum;
+      } else {
+        array[index] = array[index-1] + sum;
+      }
+    }
+  }
+  for (var i = 0; i < width; i++) {
+    for (var j = 0; j < height; j++) {
+      var x1 = i - s2;
+      var x2 = i + s2;
+      var y1 = j - s2;
+      var y2 = j + s2;
+      var x1_1 = x1 - 1;
+      var y1_1 = y1 - 1;
+      if (x1 < 0) x1 = 0;
+      if (x2 >= width) x2 = width - 1;
+      if (x1_1 < 0) x1_1 = 0;
+      if (y1 < 0) y1 = 0;
+      if (y2 >= height) y2 = height - 1;
+      if (y1_1 < 0) y1_1 = 0;
+      var count = (x2 - x1) * (y2 - y1);
+      var index = j * width + i;
+      var index1 = y2 * width + x2;
+      var index2 = y1_1 * width + x2;
+      var index3 = y2 * width + x1_1;
+      var index4 = y1_1 * width + x1_1;
+      var sum = array[index1] - array[index2] - array[index3] + array[index4];
+      if (data[index * 4] * count <= sum * t2) {
+        data[index * 4 + 0] = data[index * 4 + 1] = data[index * 4 + 2] = 0;
+      } else {
+        data[index * 4 + 0] = data[index * 4 + 1] = data[index * 4 + 2] = 255;
+      }
+    }
+  }
+}
+
+
+
+function start() {
+    var image = document.getElementById('main_image');
+    var width = image.width;
+    var height = image.height;
+    var loop = 20;
+
+
+    // Canvas gia UNKNOWN
+    var canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    var context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0);
+    var imageData = context.getImageData(0, 0, width, height);
+
+    //Canvas gia JS
+    var jsCanvas = document.getElementById('js_canvas');
+    jsCanvas.width = width;
+    jsCanvas.height = height;
+    var jsContext = jsCanvas.getContext('2d');
+    jsContext.drawImage(image,0,0);
+    var jsImageData = jsContext.getImageData(0, 0, width, height);
+
+    // Canvas gia WASM
+    var wasmCanvas = document.getElementById('wasm_canvas');
+    wasmCanvas.width = width;
+    wasmCanvas.height = height;
+    var wasmContext = wasmCanvas.getContext('2d');
+    wasmContext.drawImage(image,0,0);
+    var wasmImageData = wasmContext.getImageData(0, 0, width, height);
+    
+    
+    var array0 = imageData.data;
+    var array1 = jsImageData.data;
+    var array2 = wasmImageData.data;
+
+
+
+    Module['onRuntimeInitialized'] = () => {
+      var jsPerformance = document.getElementById('js_performance');
+      var wsPerformance = document.getElementById('ws_performance');
+      // Javascript
+      var elapsedTime_JS = 0.0;
+      for(var i = 0; i<=loop; i++){
+
+          var array0 = imageData.data;
+          var array1 = jsImageData.data;
+          var array2 = wasmImageData.data;
+
+          var startTime = performance.now();
+          jsImageThreshold(array1, width, height);
+          jsContext.putImageData(jsImageData, 0, 0);
+          var endTime = performance.now();
+          elapsedTime_JS += (endTime - startTime);
+          }
+      elapsedTime_JS = (elapsedTime_JS/1000);
+      jsPerformance.innerText = elapsedTime_JS;
+      
+
+
+  //WASM
+      var elapsedTime_wasm = 0.0;
+      for(var i = 0; i<=loop; i++){
+
+          var array0 = imageData.data;
+          var array1 = jsImageData.data;
+          var array2 = wasmImageData.data;
+
+          //var array_wasm = wasmImageData.data;
+          var startTime = performance.now();
+          var c_func = wsImageThreshold(array2, width, height);
+          var endTime = performance.now();
+          wasmContext.putImageData(wasmImageData, 0, 0);
+          
+          elapsedTime_wasm += (endTime - startTime);   
+      }
+      elapsedTime_wasm = ( elapsedTime_wasm/1000)
+            wsPerformance.innerText = elapsedTime_wasm;
+      //console.log("otan yparxei auto to console log gia kapoio logo exw xamhlotero execution time sto wasm pragma pou to thlew giati h wasm einai pio grigorh sto image process, na kanw debug" + elapsedTime_wasm/10)
+
+              
+      function wsImageThreshold(array, width, height) {
+          var pointer = Module._malloc(array.length);
+          var offset = pointer;
+          Module.HEAPU8.set(array, offset);
+          _imageThreshold(pointer, width, height);
+          array.set(Module.HEAPU8.subarray(offset, offset + array.length));
+          Module._free(pointer);
+      }
+
+
+  }
+          
+  }     
+    
+    </script>
+
+
+    <img id="main_image" src="Lena_colors.jpg">
+
+    <canvas id="js_canvas"></canvas>
+    <canvas id="wasm_canvas"></canvas>
+    <div>
+      JavaScript: <div id="js_performance"></div><br />
+      WebAssembly: <div id="ws_performance"></div><br />
+    </div>
+</body>
+
+</html>

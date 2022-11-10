@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+</head>
+
+
+
+
+
+<h1> InstatiateStreaming - Javascript vs WASM - image Threshold</h1>
+
+
+<script>
+
+    WebAssembly.instantiateStreaming(fetch('customThreshold.wasm'))
+        // .then(buffer => new Uint8Array(1600000))
+        .then(wasmModule => {
+            console.log('WASM Ready...');
+
+            //THelw na bgalw to wasm ektos scope ή closure gia to logo auto
+            //Tha to valw sto window
+            //Wasm object accessible from window
+            window.wasmModule = wasmModule;
+            console.log(wasmModule);
+            wasmModule.instance.exports.memory.grow(125);
+
+
+            var image = document.getElementById('main_image');
+            var width = image.width;
+            var height = image.height;
+
+
+            // Canvas gia UNKNOWN
+            var canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            var context = canvas.getContext('2d');
+            context.drawImage(image, 0, 0);
+            var imageData = context.getImageData(0, 0, width, height);
+
+            //Canvas gia JS
+            var jsCanvas = document.getElementById('js_canvas');
+            jsCanvas.width = width;
+            jsCanvas.height = height;
+            var jsContext = jsCanvas.getContext('2d');
+            jsContext.drawImage(image, 0, 0);
+            var jsImageData = jsContext.getImageData(0, 0, width, height);
+
+            // Canvas gia WASM
+            var wasmCanvas = document.getElementById('wasm_canvas');
+            wasmCanvas.width = width;
+            wasmCanvas.height = height;
+            var wasmContext = wasmCanvas.getContext('2d');
+            wasmContext.drawImage(image, 0, 0);
+            var wasmImageData = wasmContext.getImageData(0, 0, width, height);
+
+
+
+
+            //WASM
+            var elapsedTime_wasm = 0.0;
+
+            var array_wasm = wasmImageData.data;
+            var startTime = performance.now();
+            // var c_func = wasmModule.instance.exports.imageGrayscale(array_wasm, width, height);
+            var newImageDataBuffer = wsImageThreshold(array_wasm, width, height);
+            var newImageData = new ImageData(newImageDataBuffer, width, height);
+            
+            var endTime = performance.now();
+            wasmContext.putImageData(newImageData, 0, 0);
+
+
+
+
+            function wsImageThreshold(array, width, height) {
+                var cArr1 = new Uint8ClampedArray(
+                    wasmModule.instance.exports.memory.buffer,
+                    0,
+                    array.length
+                );
+                cArr1.set(array);
+                
+
+              
+                wasmModule.instance.exports.imageThreshold(cArr1.byteOffset, width, height);
+
+
+                return cArr1;
+            }
+
+        })
+
+
+
+
+
+
+
+
+
+
+
+
+</script>
+
+
+<img id="main_image" src="Lena.jpg">
+<canvas id="js_canvas"></canvas>
+<canvas id="wasm_canvas"></canvas>
+</body>
+
+</html>

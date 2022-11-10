@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+
+
+<haed>
+
+    <meta charset="utf-8" />
+
+</haed>
+
+
+<h1> InstatiateStreaming - Javascript vs WASM - Convolution Image </h1>
+
+<script>
+
+
+
+    WebAssembly.instantiateStreaming(fetch('custom_convolution.wasm'))
+        .then(wasmModule => {
+            console.log('WASM Ready ... ');
+        var jsPerformance = document.getElementById('js_performance');
+        var wsPerformance = document.getElementById('ws_performance');
+
+            window.wasmModule = wasmModule;
+            // 1024000(enas pinakas) * 2(pinakes) * 8(bytes)
+            wasmModule.instance.exports.memory.grow(41);
+            let loop = 10;
+            var weights = new Float64Array([
+                1/25, 1/25, 1/25, 1/25, 1/25,
+                1/25, 1/25, 1/25, 1/25, 1/25,
+                1/25, 1/25, 1/25, 1/25, 1/25,
+                1/25, 1/25, 1/25, 1/25, 1/25,
+                1/25, 1/25, 1/25, 1/25, 1/25]);
+            var wWidth = 5;
+            var wHeight = 5;
+
+
+
+//---------------------------------Images---------------------------------
+            var image = document.getElementById('main_image');
+            var width = image.width;
+            var height = image.height;
+
+            // Canvas gia UNKNOWN
+            var canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            var context = canvas.getContext('2d');
+            context.drawImage(image, 0, 0);
+            var imageData = context.getImageData(0, 0, width, height);
+
+            //Canvas gia JS
+            var jsCanvas = document.getElementById('js_canvas');
+            jsCanvas.width = width;
+            jsCanvas.height = height;
+            var jsContext = jsCanvas.getContext('2d');
+            jsContext.drawImage(image, 0, 0);
+            var jsImageData = jsContext.getImageData(0, 0, width, height);
+
+            // Canvas gia WASM
+            var wasmCanvas = document.getElementById('wasm_canvas');
+            wasmCanvas.width = width;
+            wasmCanvas.height = height;
+            var wasmContext = wasmCanvas.getContext('2d');
+            wasmContext.drawImage(image, 0, 0);
+            var wasmImageData = wasmContext.getImageData(0, 0, width, height);
+//---------------------------------Images---------------------------------
+
+            var array0 = imageData.data;
+            var array1 = jsImageData.data;
+            var array2 = wasmImageData.data;    
+
+
+//---------------------------------JavaScript---------------------------------
+            var elapsedTime_JS = 0.0;
+            for (var i = 0; i <= loop; i++){
+            var array0 = imageData.data;
+            var array1 = jsImageData.data;
+            var array2 = wasmImageData.data;   
+                var startTime = performance.now();
+               // jsImageConvolute(array0, array1, width, height,
+                             //   weights, wWidth, wHeight);
+                var endTime = performance.now();
+
+                jsContext.putImageData(jsImageData, 0, 0);
+                elapsedTime_JS += (endTime - startTime);
+
+            }
+            elapsedTime_JS = (elapsedTime_JS / 1000)
+            // console.log("JAvascript", elapsedTime_JS / 10)
+//---------------------------------JavaScript---------------------------------
+
+
+
+
+//---------------------------------Wasm---------------------------------
+
+            var elapsedTime_wasm = 0.0;
+            for ( var i = 0; i <= loop; i++){
+            // var array0 = imageData.data;
+            // var array1 = jsImageData.data;
+            // var array2 = wasmImageData.data;   
+            
+                var array_wasm = wasmImageData
+                var startTime = performance.now();
+                // prepei na dimiourgisw kanourgio ImageData kathos o pinakas array_wasm
+                // feugei gia na epeksergastei sthn wasm opote den exw to VIEW toy opws to eixa 
+                // sthn Javascript   
+                var newImageDataBuffer = wsImageConvolute(
+                    array0,
+                    array2,
+                    width,
+                    height,
+                    weights,
+                    wWidth,
+                    wHeight);
+
+                //console.log("asd", newImageDataBuffer);
+                var newImageData = new ImageData(newImageDataBuffer, width, height);
+                var endTime = performance.now();
+                wasmContext.putImageData(newImageData, 0, 0);
+                elapsedTime_wasm += (endTime - startTime); 
+            }
+            elapsedTime_wasm = ( elapsedTime_wasm/1000)
+            wsPerformance.innerText = elapsedTime_wasm;
+            //console.log("wasm", elapsedTime_wasm/1000);
+
+
+
+           function wsImageConvolute(
+               array0,
+               array2,
+               width,
+               height,
+               weights,
+               wWidth,
+               wHeight){
+
+                var cArr1 = new Uint8ClampedArray(
+                    wasmModule.instance.exports.memory.buffer,
+                    0,
+                    array0.length
+                );
+                cArr1.set(array0);
+                //console.log("array1", array1.length);
+                //console.log(cArr1);
+
+                var cArr2 = new Uint8ClampedArray(
+                    wasmModule.instance.exports.memory.buffer,
+                    0 + cArr1.byteLength,
+                    array2.length
+                );
+                cArr2.set(array2);
+
+                //console.log("array2", array2.length);
+                //console.log(cArr2);
+               
+
+                
+                var cArr3 = new Float64Array(
+                    wasmModule.instance.exports.memory.buffer,
+                    0 + cArr1.byteLength + cArr2.byteLength,
+                    weights.length
+                )
+                cArr3.set(weights);
+                //console.log("array3", cArr3.length);
+                //console.log(cArr3);
+
+                wasmModule.instance.exports.imageConvolute(
+                    cArr1.byteOffset,
+                    cArr2.byteOffset,
+                    width,
+                    height,
+                    cArr3.byteOffset,
+                    wWidth,
+                    wHeight
+                )
+
+
+                return cArr2;
+            }
+
+
+//---------------------------------Wasm---------------------------------
+
+        })
+
+    function jsImageConvolute(
+    data, data2, width, height,weights, wwidth, wheight) {
+        var halfWWidth = (wwidth / 2) | 0;
+        var halfWHeight = (wheight / 2) | 0;
+        for (var y = 0; y < height; y++) {
+            for (var x = 0; x < width; x++) {
+                var r = 0;
+                var g = 0;
+                var b = 0;
+                var a = 0;
+                for (var wy = 0; wy < wheight; wy++) {
+                    var sy = y + wy - halfWHeight;
+                    if (sy < 0 || sy >= height)
+                        continue;
+                        for (var wx = 0; wx < wwidth; wx++) {
+                            var sx = x + wx - halfWWidth;
+                            if (sx < 0 || sx >= width)
+                            continue;
+                            var index = sy * width + sx;
+                            var weight = weights[wy*wwidth+wx];
+                            r += data[index*4+0] * weight;
+                            g += data[index*4+1] * weight;
+                            b += data[index*4+2] * weight;
+                            a += data[index*4+3] * weight;
+                        }
+                }
+            var index = y * width + x;
+            data2[index*4+0] = r | 0;
+            data2[index*4+1] = g | 0;
+            data2[index*4+2] = b | 0;
+            data2[index*4+3] = a | 0;
+            }
+        }
+    }
+
+
+</script>
+
+
+<img id="main_image" src="Lena_colors.jpg">
+<canvas id="js_canvas"></canvas>
+<canvas id="wasm_canvas"></canvas>
+<div>
+    JavaScript: <div id="js_performance"></div><br />
+    WebAssembly: <div id="ws_performance"></div><br />
+</div>
+</body>
+
+
+</html>
