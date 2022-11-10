@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+</head>
+<body>
+    <h1> instantiate Sorting: Quick Short Double</h1>
+    <div>
+      JavaScript: <div id="js_performance"></div><br />
+      WebAssembly: <div id="ws_performance"></div><br />
+</div>
+
+<script>
+var jsPerformance = document.getElementById('js_performance');
+var wsPerformance = document.getElementById('ws_performance');
+var num = 2000;
+var loop = 100;
+
+var array = new Float64Array(num); // master
+var array1 = new Float64Array(num); // for JavaScript
+var array2 = new Float64Array(num); // for WebAssembly
+
+initArray(array);
+initArray(array2);
+
+function initArray(array) {
+    for (var i = 0, il = array.length; i < il; i++) {
+      array[i] = i+100;
+    }
+}
+  
+function copyArray(src, res) {
+  for (var i = 0, il = src.length; i < il; i++) {
+    res[i] = src[i];
+  }
+}
+
+  function orderIsOk(array) {
+    for (var i = 1, il = array.length; i < il; i++) {
+      if (array[i-1] > array[i])
+        return false;
+    }
+    return true;
+}
+
+
+
+
+
+
+
+
+WebAssembly.instantiateStreaming( fetch('quicksortDouble1.wasm') )
+            .then( wasm =>{
+              window.wasm = wasm;
+              wasm.instance.exports.memory.grow(34);
+
+
+
+// WASM
+
+let elapsedTime_WASM = 0.0;
+for (var i = 0; i < loop; i++) {
+  var WSstartTime = performance.now();
+  wsQuicksortDouble(array2, 0, array2.length-1);
+  let WSendTime = performance.now();
+  //elapsedTime_WS += (WSendTime - WSstartTime);
+  elapsedTime_WASM += (WSendTime - WSstartTime);
+  //console.log("WASM111 "+((WSendTime - WSstartTime )/1000))
+    
+}
+console.log("WASM "+((elapsedTime_WASM)/1000))
+wsPerformance.innerText = (elapsedTime_WASM)/1000
+
+
+
+function wsQuicksortDouble(array, start, end) {
+
+  var cSrc1 = new Float64Array(
+                wasm.instance.exports.memory.buffer,
+                0,
+                array.length
+            );
+            cSrc1.set(array) 
+
+            wasm.instance.exports.quicksortDouble(cSrc1.byteOffset, start, end)
+
+    // var pointer = Module._malloc(array.length * 8);
+    // var offset = pointer / 8;
+    // Module.HEAPF64.set(array, offset);
+    
+    // _quicksortDouble(pointer, start, end);
+    
+    
+    // array.set(Module.HEAPF64.subarray(offset, offset + end + 1));
+    // Module._free(pointer);
+  }
+  
+ 
+
+
+  
+})
+
+
+
+</script> 
+
+</body>
+
+</html>
+
+

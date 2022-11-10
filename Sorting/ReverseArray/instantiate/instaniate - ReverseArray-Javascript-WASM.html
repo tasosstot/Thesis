@@ -1,0 +1,82 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+</head>
+<body>
+    <h1> Instantiate Sorting: Reverse Array</h1>
+    <div>
+        WebAssembly: <div id="ws_performance"></div><br />
+      </div>
+
+
+<script>
+    var wsPerformance = document.getElementById('ws_performance');
+    let num_array = 92000;
+    var loop = 500;
+
+    let array_JS = new Float64Array(num_array);
+    let array_WASM = new Float64Array(num_array);
+    //let array_out = new Int32Array(num_array);
+
+    initArray(array_JS);
+    initArray(array_WASM);
+    
+
+    function initArray(array) {
+        for (var i = 0, il = array.length; i < il; i++) {
+           array[i] = i+100;
+           
+        }
+    }
+
+
+
+WebAssembly.instantiateStreaming( fetch('customreverse.wasm') )
+            .then( wasm =>{
+              window.wasm = wasm;
+              wasm.instance.exports.memory.grow(20);
+
+
+
+// WASM
+
+    let elapsedTime_WASM = 0.0
+    for ( var i = 0; i < loop; i++){
+        var jsC = performance.now()
+        reverseArrWasm(array_WASM);
+        console.log(array_WASM);
+        var jsC1 = performance.now()
+        //let CreverseCount = _reverse(array_WASM,pointer_out, array_WASM.length );
+        elapsedTime_WASM += (jsC1 - jsC);    
+    }
+    
+    wsPerformance.innerText = (elapsedTime_WASM)/1000
+
+
+
+    function reverseArrWasm(array){
+
+        var cSrc1 = new Float64Array(
+                        wasm.instance.exports.memory.buffer,
+                        0,
+                        array.length
+                    );
+                    cSrc1.set(array) 
+
+                    wasm.instance.exports.reverse(cSrc1.byteOffset,array.length)
+
+  }
+
+})
+
+
+
+</script> 
+
+</body>
+
+</html>
+
+

@@ -1,0 +1,105 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+</head>
+<body>
+    <h1>Javascript vs WASM - Reverse Array</h1>
+    <div>
+        JavaScript: <div id="js_performance"></div><br />
+        WebAssembly: <div id="ws_performance"></div><br />
+    </div>
+    <script src="reverseArray.js"></script>
+
+    <script>
+    var jsPerformance = document.getElementById('js_performance');
+    var wsPerformance = document.getElementById('ws_performance');
+    let num_array = 92000;
+    var loop = 500;
+
+    let array_JS = new Float64Array(num_array);
+    let array_WASM = new Float64Array(num_array);
+    //let array_out = new Int32Array(num_array);
+
+    initArray(array_JS);
+    initArray(array_WASM);
+    
+    
+    // function initArray(array) {
+    //     for (var i = 0, il = array.length; i < il; i++) {
+    //        array[i] = ((Math.random() * 20000) | 0) - 10000;
+           
+    //     }
+    // }
+
+    function initArray(array) {
+        for (var i = 0, il = array.length; i < il; i++) {
+           array[i] = i+100;
+           
+        }
+    }
+    
+
+    //JavaScript
+    function reverseArr(input) {
+        var arr = new Array;
+            for(var i = input.length-1; i >= 0; i--) {
+                arr.push(input[i]);
+            }
+            
+    return arr;
+    }
+
+    function reverseArrWasm(array){
+        var pointer = Module._malloc(array.length * 8);
+        var offset = pointer / 8;
+        Module.HEAPF64.set(array, offset);
+        let test =  _reverse(pointer, array.length);
+        
+        array.set(Module.HEAPF64.subarray(offset, offset + array.length ));
+        
+        Module._free(pointer);
+
+    }
+
+    
+
+
+    Module['onRuntimeInitialized'] = () => {
+    let elapsedTime_JS = 0.0
+    
+    for ( var i = 0; i < loop; i++){
+        var jsStart = performance.now()
+        reverseArr(array_JS);
+        //console.log("test",array_JS)
+        let JSendTime = performance.now();
+        elapsedTime_JS += (JSendTime - jsStart);
+
+    }
+    //console.log("Javascript is ", (performance.now() - jsStart)/1000);
+    jsPerformance.innerText = elapsedTime_JS/1000
+    
+      
+
+
+    let elapsedTime_WASM = 0.0
+    
+    for ( var i = 0; i < loop; i++){
+        var jsC = performance.now()
+        reverseArrWasm(array_WASM);
+        //let CreverseCount = _reverse(array_WASM,pointer_out, array_WASM.length );
+        elapsedTime_WASM += (performance.now() - jsC);
+    }
+    console.log("WASM", Math.round(performance.now() - jsC)/1000);
+    wsPerformance.innerText = (elapsedTime_WASM)/1000
+    }
+
+</script> 
+
+</body>
+
+</html>
+
+

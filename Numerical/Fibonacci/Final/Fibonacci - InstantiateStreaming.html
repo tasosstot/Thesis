@@ -1,0 +1,70 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>WebAssembly Demo</title>
+    </head>
+    <body>
+        <h1> WASM InstantiateStreaming EXPORT Method</h1>
+        <div>
+            JavaScript: <div id="js_performance"></div><br />
+            WebAssembly: <div id="ws_performance"></div><br />
+        </div>
+
+        <script>
+        let fibonacciNum = 45;
+        var jsPerformance = document.getElementById('js_performance');
+        var wsPerformance = document.getElementById('ws_performance');
+
+            WebAssembly.instantiateStreaming( fetch('newCustom.wasm') )
+            .then( wasm =>{
+                console.log('WASM Ready...');
+
+                //THelw na bgalw to wasm ektos scope ή closure gia to logo auto
+                //Tha to valw sto window
+                //Wasm object accessible from window
+                window.wasm = wasm;
+
+                //Log all the exported functions of Module
+                
+                //console.log(wasm.instance.exports.Cfibonacci(5));
+
+                //console.log(wasm.instance.export.main());
+                let jsC = performance.now()
+                let cPrimesCount = wasm.instance.exports.Cfibonacci(fibonacciNum);
+                console.log("WASM", Math.round(performance.now() - jsC).toFixed(2) +"ms");
+                let elapsedTime_wasm = (performance.now() - jsC).toFixed(2) +"ms";
+                wsPerformance.innerText = elapsedTime_wasm;
+            })
+
+
+
+
+
+        function jsFibonacci(num){
+            if (num === 1) return 1;
+            if (num === 2) return 1;
+        return jsFibonacci(num-1) + jsFibonacci(num-2);
+        }
+
+        const jsPrintFibonacci = num =>{
+            for(let i=3; i <=num; i++){
+                let num_fib = jsFibonacci(i);         
+            }
+        }
+
+
+             let jsStart = performance.now()
+             //let jsFibPrint = jsPrintFibonacci(fibonacciNum);
+             console.log("Javascript is ", Math.round(performance.now() - jsStart).toFixed(2) +"ms");
+             let elapsedTime_JS = ((performance.now() - jsStart).toFixed(2) +"ms");
+             jsPerformance.innerText = elapsedTime_JS;
+
+            // let jsC = performance.now()
+            // let cPrimesCount = wasm.instance.exports.Cfibonacci(10);
+            // console.log("WASM", Math.round(performance.now() - jsStart)/1000);
+
+
+
+        </script>
+    </body>
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+</head>
+<body>
+    <h1>Javascript vs WASM - Fibonacci</h1>
+    <div>
+        JavaScript: <div id="js_performance"></div><br />
+        WebAssembly: <div id="ws_performance"></div><br />
+    </div>
+
+    <script src="fibonacci.js"></script>
+
+    <script>
+
+    let fibonacciNum = 40;
+    var jsPerformance = document.getElementById('js_performance');
+    var wsPerformance = document.getElementById('ws_performance');
+          
+        function jsFibonacci(num){
+            if (num === 1) return 1;
+            if (num === 2) return 1;
+            return jsFibonacci(num-1) + jsFibonacci(num-2);
+        }
+
+        const jsPrintFibonacci = num =>{
+            for(let i=3; i <=num; i++){
+                let num_fib = jsFibonacci(i);
+               
+            }
+        }
+
+    Module['onRuntimeInitialized'] = () => {
+
+        let jsStart = performance.now()
+        let jsFibPrint = jsPrintFibonacci(fibonacciNum);
+        console.log("Javascript is ", (performance.now() - jsStart).toFixed(2) +"ms");
+        let elapsedTime_JS = ((performance.now() - jsStart).toFixed(2) +"ms");
+
+        let jsC = performance.now()
+        let cPrimesCount = _FibonacciNumbers(fibonacciNum);
+        console.log("WASM", (performance.now() - jsC).toFixed(2) +"ms");
+        let elapsedTime_wasm = ((performance.now() - jsC).toFixed(2) +"ms");
+
+        jsPerformance.innerText = elapsedTime_JS;
+        wsPerformance.innerText = elapsedTime_wasm;
+    }
+
+</script> 
+
+</body>
+
+</html>
+
+

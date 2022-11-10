@@ -1,0 +1,100 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+</head>
+<body>
+    <h1>Javascript vs WASM - Multiply Vector Double</h1>
+    <div>
+        JavaScript: <div id="js_performance"></div><br />
+        WebAssembly: <div id="ws_performance"></div><br />
+    </div>
+    <script src="multiplyVectorDouble.js"></script>
+
+    <script>
+
+    
+    var num = 70000;
+    var loop = 9000;
+
+    var src1 = new Float64Array(num);
+    var src2 = new Float64Array(num);
+
+    var res1 = new Float64Array(num); // for JavaScript
+    var res2 = new Float64Array(num); // for WebAssembly
+
+    initArray(src1);
+    initArray(src2);    
+
+    
+    
+    function jsMultiplyDoubleVec(src1, src2, res, n) {
+        for (var i = 0; i < n; i++) {
+            res[i] = src1[i] * src2[i];
+        }
+    }
+
+
+
+    
+
+    function initArray(array) {
+        for (var i = 0, il = array.length; i < il; i++) {
+            array[i] = ((Math.random() * 20000) | 0) - 10000;
+        }
+    }
+
+
+    function multiplydoubleVec(src1, src2, res, n) {
+        var pointer1 = Module._malloc(src1.length * 8);
+        var pointer2 = Module._malloc(src2.length * 8);
+        var pointer3 = Module._malloc(res.length * 8);
+        var offset1 = pointer1 / 8;
+        var offset2 = pointer2 / 8;
+        var offset3 = pointer3 / 8;
+        Module.HEAPF64.set(src1, offset1);
+        Module.HEAPF64.set(src2, offset2);
+        _multiplyDoubleVec(pointer1, pointer2, pointer3, n);
+        res.set(Module.HEAP32.subarray(offset3, offset3 + n));
+        Module._free(pointer1);
+        Module._free(pointer2);
+        Module._free(pointer3);
+    }
+
+
+    Module['onRuntimeInitialized'] = () => {
+
+    let jsStart = performance.now()
+    for ( var i = 0; i < loop; i++){
+        jsMultiplyDoubleVec(src1, src2, res1, src1.length);
+    }
+    let elapsedTime_JS = ((performance.now() - jsStart).toFixed(2) +"ms");
+    console.log("Javascript is ", (performance.now() - jsStart));
+
+
+
+    let cStart = performance.now()
+        for (var i = 0; i < loop; i++) {
+            multiplydoubleVec(src1, src2, res2, src2.length);
+        }
+    let elapsedTime_wasm = ((performance.now() - cStart).toFixed(2) +"ms");
+    console.log("WASM", (performance.now() - cStart));
+
+
+    var jsPerformance = document.getElementById('js_performance');
+    var wsPerformance = document.getElementById('ws_performance');
+
+    jsPerformance.innerText = elapsedTime_JS;
+    wsPerformance.innerText = elapsedTime_wasm;
+
+    }
+
+</script> 
+
+</body>
+
+</html>
+
+

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+</head>
+
+<body>
+    <h1>InstatiateSteaming - Javascript vs WASM - Multiply Vector Double</h1>
+    <div>
+        JavaScript: <div id="js_performance"></div><br />
+        WebAssembly: <div id="ws_performance"></div><br />
+    </div>
+    <!-- <script src="multiplyVectorDouble.js"></script> -->
+
+    <script>
+
+var jsPerformance = document.getElementById('js_performance');
+var wsPerformance = document.getElementById('ws_performance');
+        // var num = 70000;
+        var num = 70000;
+        var loop = 9000;
+
+        var src1 = new Float64Array(num);
+        var src2 = new Float64Array(num);
+
+        var res1 = new Float64Array(num); // for JavaScript
+        var res2 = new Float64Array(num); // for WebAssembly
+
+        initArray(src1);
+        initArray(src2);
+
+
+
+        function jsMultiplyDoubleVec(src1, src2, res, n) {
+            for (var i = 0; i < n; i++) {
+                res[i] = src1[i] * src2[i];
+            }
+        }
+
+
+
+
+
+        function initArray(array) {
+            for (var i = 0, il = array.length; i < il; i++) {
+                array[i] = ((Math.random() * 20000) | 0) - 10000;
+            }
+        }
+
+
+        function multiplydoubleVec(src1, src2, res, n, wasm) {
+            
+            var cSrc1 = new Float64Array(
+                wasm.instance.exports.memory.buffer,
+                0,
+                src1.length
+            );
+            cSrc1.set(src1)
+
+            var cSrc2 = new Float64Array(
+                wasm.instance.exports.memory.buffer,
+                0 + cSrc1.byteLength,
+                src2.length
+            );
+            cSrc2.set(src2)
+
+            var cRes = new Float64Array(
+                wasm.instance.exports.memory.buffer,
+                0 + cSrc1.byteLength + cSrc2.byteLength,
+                res.length
+            );
+
+            wasm.instance.exports.multiplyDoubleVec(
+                cSrc1.byteOffset, 
+                cSrc2.byteOffset,
+                cRes.byteOffset,
+                n
+            )
+
+            
+        }
+        
+        WebAssembly.instantiateStreaming( fetch('customVecDouble.wasm') )
+            .then( wasm =>{
+                window.wasm = wasm;
+                
+                wasm.instance.exports.memory.grow(Math.ceil(num * 3 * 8 / 65536));
+                //wasm.instance.exports.memory.grow(Math.ceil(num * 3 * 8 / 65536));
+                console.log('WASM Ready...');
+                
+                let cStart = performance.now()
+                for (var i = 0; i < loop; i++) {
+                    multiplydoubleVec(src1, src2, res2, src2.length, wasm);
+                }
+                let elapsedTime_wasm = ((performance.now() - cStart).toFixed(2) +"ms");
+                console.log("WASM", Math.round(performance.now() - cStart).toFixed(2) +"ms");
+                
+                wsPerformance.innerText = elapsedTime_wasm;
+            })
+
+
+    </script>
+
+</body>
+
+</html>

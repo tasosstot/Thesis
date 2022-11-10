@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+</head>
+<body>
+    <h1>Javascript vs WASM - Multiply Double - Web Workers</h1>
+    <div>
+      JavaScript: <div id="js_performance"></div><br />
+  </div>
+
+    <script>
+   // console.log('test1')
+    const worker = new Worker('worker.js');
+    //onsole.log('test2');
+    worker.postMessage(10);
+  
+
+    worker.onmessage = function(e){
+       console.log(e.data)
+       var jsPerformance = document.getElementById('js_performance');
+       jsPerformance.innerText = e.data;
+       
+      //  console.log('test4')
+        
+    }
+       
+
+
+
+</script> 
+
+</body>
+
+</html>
+
+

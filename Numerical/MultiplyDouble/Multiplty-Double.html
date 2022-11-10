@@ -1,0 +1,69 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+</head>
+<body>
+    <h1>Javascript vs WASM - Multiply Double</h1>
+        <div>
+        JavaScript: <div id="js_performance"></div><br />
+        WebAssembly: <div id="ws_performance"></div><br />
+    </div>
+
+    <script src="multiplyDouble.js"></script>
+
+    <script>
+    var jsPerformance = document.getElementById('js_performance');
+    var wsPerformance = document.getElementById('ws_performance');  
+    var big_num = 3000000; 
+   // var loop = 10;
+          
+        function jsMultiplyDouble(a, b, big_num){
+            var c = 1.0;
+            for (var i = 0; i < big_num; i++) {
+                c = c * a * b;
+            }
+        return c;
+        }
+
+        // const jsMultiplyLooper = loop =>{
+        //     for(let i=0; i < loop; i++){
+        //         let multiplier = jsMultiplyInteger(1, 1, big_num);              
+        //     }
+        // }
+
+    Module['onRuntimeInitialized'] = () => {
+        
+        let jsStart = performance.now()
+        for (var i = 0; i < 500; i++) {
+            let jsMUltiplyCalc = jsMultiplyDouble(big_num,big_num,big_num);
+        }
+        let jsFinish = performance.now()
+        console.log("Javascript is ", (jsFinish - jsStart).toFixed(2));
+        let elapsedTime_JS = ((jsFinish - jsStart).toFixed(2) +"ms");
+
+
+        let cStart = performance.now()
+        for (var i = 0; i < 500; i++) {
+            let cMUltiplyCalc = _multiplyInt(big_num,big_num,big_num);
+        }
+        let cFinish = performance.now()
+        console.log("WASM", (cFinish - cStart).toFixed(2));
+
+        
+        let elapsedTime_wasm = ((cFinish - cStart).toFixed(2) +"ms");    
+
+        jsPerformance.innerText = elapsedTime_JS;
+        wsPerformance.innerText = elapsedTime_wasm;
+
+    }
+
+</script> 
+
+</body>
+
+</html>
+
+

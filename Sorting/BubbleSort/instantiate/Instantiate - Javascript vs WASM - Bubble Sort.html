@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+</head>
+<body>
+    <h1>Instantiate Javascript vs WASM - Bubble Sort</h1>
+    <div>
+        JavaScript: <div id="js_performance"></div><br />
+        WebAssembly: <div id="ws_performance"></div><br />
+    </div>
+
+
+    <script>
+    var wsPerformance = document.getElementById('ws_performance');
+    //let num_array = 50000 ;
+    let num_array = 5000 ;
+    var loop = 10;
+
+    let array_JS = new Float64Array(num_array);
+    let array_WASM = new Float64Array(num_array);
+    let array_out = new Float64Array(num_array);
+
+    initArray(array_JS);
+    initArray(array_WASM);
+    
+    
+    function initArray(array) {
+        for (var i = 0, il = array.length; i < il; i++) {
+            array[i] = i+100
+        //    array[i] = (Math.random() * 10000);
+           
+        }
+    }
+
+    // function initArray(array) {
+    //     for (var i = 0, il = array.length; i < il; i++) {
+    //        array[i] = i;
+           
+    //     }
+    // }
+
+
+    //JavaScript
+
+
+    function wsBubbleSortDouble(array, wasm) {
+
+        var cSrc1 = new Float64Array(
+                wasm.instance.exports.memory.buffer,
+                0,
+                array.length
+            );
+            cSrc1.set(array) 
+            var len =  array.length;
+
+          
+            wasm.instance.exports.bubbleSort(cSrc1.byteOffset, len)
+            //console.log("WASM ",(performance.now() - WSstartTime)/1000);
+           
+       // var pointer = Module._malloc(array.length * 8);
+        //var offset = pointer / 8;
+        //Module.HEAPF64.set(array, offset);
+       // _bubbleSort(pointer, array.length);
+        //array.set(Module.HEAPF64.subarray(offset, offset + array.length));
+      //  array.set(Module.HEAPF64.subarray(offset, offset + array.length ));
+        //Module._free(pointer);
+        return cSrc1;
+    }
+    
+
+// 
+
+WebAssembly.instantiateStreaming( fetch('customBubbleSort.wasm') )
+            .then( wasm =>{
+                window.wasm = wasm;
+                // poly memory exeis valei tsampa
+                wasm.instance.exports.memory.grow(30);
+
+            var WSstartTime = performance.now();
+            for (var i = 0; i < loop; i++) {
+
+                var len = array_WASM.length;
+                wsBubbleSortDouble(array_WASM, wasm);
+                //bubbleSort(array_WASM, array_WASM.length);
+                
+                //elapsedTime_WS += (WSendTime - WSstartTime);
+            }
+            let elapsedTime_wasm = ((performance.now() - WSstartTime).toFixed(2) +"ms");
+            wsPerformance.innerText = elapsedTime_wasm;
+            
+
+
+
+
+
+
+
+
+            })
+
+</script> 
+
+</body>
+
+</html>
+
+

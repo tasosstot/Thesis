@@ -1,0 +1,120 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+</head>
+<body>
+    <h1>Sorting: Quick Short Integers</h1>
+    <div>
+      JavaScript: <div id="js_performance"></div><br />
+      WebAssembly: <div id="ws_performance"></div><br />
+    </div>    
+<script src="quicksortInt.js"></script>
+
+<script>
+var jsPerformance = document.getElementById('js_performance');
+var wsPerformance = document.getElementById('ws_performance');
+var num = 5000;
+var loop = 10;
+
+var array = new Int32Array(num); // master
+var array1 = new Int32Array(num); // for JavaScript
+var array2 = new Int32Array(num); // for WebAssembly
+
+initArray(array);
+
+function initArray(array) {
+    for (var i = 0, il = array.length; i < il; i++) {
+      array[i] = i+100
+    }
+}
+  
+function copyArray(src, res) {
+  for (var i = 0, il = src.length; i < il; i++) {
+    res[i] = src[i];
+  }
+}
+
+  function orderIsOk(array) {
+    for (var i = 1, il = array.length; i < il; i++) {
+      if (array[i-1] > array[i])
+        return false;
+    }
+    return true;
+}
+
+
+
+
+
+//JavaScript
+function jsQuicksortInt(array, start, end) {
+  
+    if (start >= end) return;
+    var pivot = array[end];
+    var left = 0;
+    var right = 0;
+    while (left + right < end - start) {
+        var num = array[start+left];
+        if (num < pivot) {
+            left++;
+        } else {
+            array[start+left] = array[end-right-1];
+            array[end-right-1] = pivot;
+            array[end-right] = num;
+            right++;
+        }
+        
+    }
+    
+    jsQuicksortInt(array, start, start+left-1);
+    jsQuicksortInt(array, start+left+1, end);
+    
+}
+
+
+Module['onRuntimeInitialized'] = () => {
+
+// Javascript
+var elapsedTime_JS = 0.0;
+
+for (var i = 0; i < loop; i++) {
+
+  // copyArray(array, array1);
+  // copyArray(array, array2);
+  var startTime = performance.now();
+  jsQuicksortInt(array, 0, array.length-1);
+  var endTime = performance.now();
+  elapsedTime_JS += (endTime - startTime)
+}
+jsPerformance.innerText = ((elapsedTime_JS)/1000).toFixed(4)
+console.log("js "+(elapsedTime_JS/1000).toFixed(4))
+
+// WASM
+let elapsedTime_WASM = 0.0;
+for (var i = 0; i < loop; i++) {
+  var WSstartTime = performance.now();
+  wsQuicksortInt(array, 0, array.length-1);
+  var WSendTime = performance.now();
+  elapsedTime_WASM += (WSendTime - WSstartTime);
+}
+console.log("WASM "+(elapsedTime_WASM/1000).toFixed(4))
+wsPerformance.innerText = (elapsedTime_WASM)/1000
+
+
+function wsQuicksortInt(array, start, end) {
+    var pointer = Module._malloc(array.length * 4);
+    var offset = pointer / 4;
+    Module.HEAP32.set(array, offset);
+    _quicksortInt(pointer, start, end);
+    array.set(Module.HEAP32.subarray(offset, offset + end + 1));
+    Module._free(pointer);
+  }  
+}
+</script> 
+</body>
+
+</html>
+
+
